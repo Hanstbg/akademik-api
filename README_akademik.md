@@ -21,6 +21,8 @@ REST API backend untuk manajemen tugas kuliah dengan **Role-Based Access Control
 - Spring Data JPA + PostgreSQL
 - Maven
 
+---
+
 ## Setup
 
 ### 1. Buat database PostgreSQL
@@ -31,11 +33,19 @@ CREATE DATABASE db_akademik_api;
 
 ### 2. Konfigurasi koneksi
 
+Salin file template:
+
 ```bash
 cp src/main/resources/application.properties.template src/main/resources/application.properties
 ```
 
-Edit `application.properties` sesuai PostgreSQL kamu.
+Edit `application.properties` dan sesuaikan:
+
+```properties
+spring.datasource.url=jdbc:postgresql://localhost:5432/db_akademik_api
+spring.datasource.username=postgres
+spring.datasource.password=<password_kamu>
+```
 
 ### 3. Jalankan aplikasi
 
@@ -93,75 +103,70 @@ Aplikasi berjalan di: `http://localhost:8080`
 
 ## Cara Pakai Token
 
-Setelah login, tambahkan header berikut ke setiap request:
+Setelah login, salin token dari response lalu tambahkan ke setiap request sebagai header:
+
 ```
 Authorization: Bearer <token_dari_login>
 ```
 
 ---
 
-## Contoh Request (Postman)
+## Contoh Request
 
-### Register Dosen
-```json
-POST /api/auth/register
-{
-  "name": "Dr. Budi",
-  "email": "budi@kampus.ac.id",
-  "password": "password123",
-  "role": "DOSEN"
-}
+### Register & Login
+
+```powershell
+# Register Mahasiswa
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/auth/register" `
+  -ContentType "application/json" `
+  -Body '{"name":"Hans Anderson","email":"hans@example.com","password":"password123","role":"MAHASISWA"}'
+
+# Register Dosen
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/auth/register" `
+  -ContentType "application/json" `
+  -Body '{"name":"Dr. Budi","email":"budi@example.com","password":"password123","role":"DOSEN"}'
+
+# Login dan simpan token
+$response = Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/auth/login" `
+  -ContentType "application/json" `
+  -Body '{"email":"budi@example.com","password":"password123"}'
+$token = $response.data.token
 ```
 
-### Register Mahasiswa
-```json
-POST /api/auth/register
-{
-  "name": "Hans Anderson",
-  "email": "hans@mahasiswa.ac.id",
-  "password": "password123",
-  "role": "MAHASISWA"
-}
+### Buat Mata Kuliah (DOSEN)
+
+```powershell
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/matakuliah" `
+  -ContentType "application/json" `
+  -Headers @{Authorization="Bearer $token"} `
+  -Body '{"nama":"Pemrograman Berbasis Objek","kode":"IF301","deskripsi":"Belajar OOP dengan Java","sks":3}'
 ```
 
-### Buat Mata Kuliah (login sebagai DOSEN)
-```json
-POST /api/matakuliah
-{
-  "nama": "Pemrograman Berbasis Objek",
-  "kode": "IF301",
-  "deskripsi": "Belajar OOP dengan Java",
-  "sks": 3
-}
+### Buat Tugas (DOSEN)
+
+```powershell
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/tugas" `
+  -ContentType "application/json" `
+  -Headers @{Authorization="Bearer $token"} `
+  -Body '{"judul":"Tugas 1 - REST API","deskripsi":"Buat REST API sederhana","deadline":"2025-12-31T23:59:00","mataKuliahId":"<uuid-mata-kuliah>"}'
 ```
 
-### Buat Tugas (login sebagai DOSEN)
-```json
-POST /api/tugas
-{
-  "judul": "Tugas 1 - REST API",
-  "deskripsi": "Buat REST API sederhana menggunakan Spring Boot",
-  "deadline": "2025-12-31T23:59:00",
-  "mataKuliahId": "uuid-mata-kuliah"
-}
+### Kumpulkan Tugas (MAHASISWA)
+
+```powershell
+Invoke-RestMethod -Method POST -Uri "http://localhost:8080/api/submission" `
+  -ContentType "application/json" `
+  -Headers @{Authorization="Bearer $mahasiswaToken"} `
+  -Body '{"tugasId":"<uuid-tugas>","jawaban":"Link GitHub: https://github.com/hans/tugas1"}'
 ```
 
-### Kumpulkan Tugas (login sebagai MAHASISWA)
-```json
-POST /api/submission
-{
-  "tugasId": "uuid-tugas",
-  "jawaban": "Link GitHub: https://github.com/hans/tugas1"
-}
-```
+### Beri Nilai (DOSEN)
 
-### Beri Nilai (login sebagai DOSEN)
-```json
-PUT /api/submission/{id}/nilai
-{
-  "nilai": 90,
-  "catatan": "Implementasi sudah baik, endpoint lengkap"
-}
+```powershell
+Invoke-RestMethod -Method PUT -Uri "http://localhost:8080/api/submission/<uuid-submission>/nilai" `
+  -ContentType "application/json" `
+  -Headers @{Authorization="Bearer $token"} `
+  -Body '{"nilai":90,"catatan":"Implementasi sudah baik, endpoint lengkap"}'
 ```
 
 ---
@@ -173,7 +178,6 @@ PUT /api/submission/{id}/nilai
 mvn clean test
 
 # Lihat laporan JaCoCo
-mvn clean test && open target/site/jacoco/index.html
+mvn clean test
+# Buka file: target/site/jacoco/index.html
 ```
-
-update 
